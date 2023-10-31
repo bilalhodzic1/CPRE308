@@ -54,14 +54,20 @@ void* work(){
 	while(1){
 		if(q->size != 0){
 			qNode_t gottem = deQueue(q);
-			printf("A thread read this: %s\n", gottem.transaction);
+			request_t test = parse_transaction(gottem.transaction);
 		}
 	}
 }
 
 request_t parse_transaction(char* transaction){
 	request_t new_request;
-	
+	char* token = strtok(transaction, " ");
+	if(strcmp(token, "ID") == 0){
+		printf("Transaction after 1 strtok: %s\n", transaction);
+		token = strtok(NULL, " ");
+		new_request.check_acc_id = atoi(token);
+	}
+	printf("New request check id: %d\n", new_request.check_acc_id);
 	return new_request;
 }
 
