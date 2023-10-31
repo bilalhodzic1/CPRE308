@@ -27,6 +27,9 @@ int main(int argc, char* argv[]){
 	for(i = 0; i < num_threads; i++){
 		pthread_create(&worker_threads[i], NULL, work, NULL);
 	}
+	for(i = 0; i < num_accounts; i++){
+		pthread_mutex_init(&account_locks[i], NULL);
+	}
 
 
 	char transaction[100];
@@ -54,6 +57,12 @@ void* work(){
 			printf("A thread read this: %s\n", gottem.transaction);
 		}
 	}
+}
+
+request_t parse_transaction(char* transaction){
+	request_t new_request;
+	
+	return new_request;
 }
 
 //TO make transactions first get old value. Adjust. Write the new value. Write does not do any math.
