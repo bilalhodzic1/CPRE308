@@ -62,7 +62,7 @@ void* work(){
 request_t parse_transaction(char* transaction){
 	request_t new_request;
 	char* token = strtok(transaction, " ");
-	if(strcmp(token, "ID") == 0){
+	if(strcmp(token, "CHECK") == 0){
 		printf("Transaction after 1 strtok: %s\n", transaction);
 		token = strtok(NULL, " ");
 		new_request.check_acc_id = atoi(token);
