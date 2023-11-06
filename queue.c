@@ -1,13 +1,14 @@
 #include "queue.h"
 
 // A utility function to create a new linked list node.
-struct QNode* newNode(char* transaction)
+struct QNode* newNode(request_t* request, char* request_string)
 {
     struct QNode* temp
         = (struct QNode*)malloc(sizeof(struct QNode));
-    char* copy = malloc(sizeof(strlen(transaction) + 1));
-    strcpy(copy, transaction);
-    temp->transaction = copy;
+    char* copy = malloc(sizeof(strlen(request_string)) + 1);
+    strcpy(copy, request_string);
+    request->request_string = copy;
+    temp->request = request;
     temp->next = NULL;
     return temp;
 }
@@ -23,15 +24,17 @@ struct Queue* createQueue()
 }
  
 // The function to add a key k to q
-void enQueue(struct Queue* q, char* transaction)
+void enQueue(struct Queue* q, request_t* newreq, char* request_string)
 {
     // Create a new LL node
-    struct QNode* temp = newNode(transaction);
+    struct QNode* temp = newNode(newreq, request_string);
  
     // If queue is empty, then new node is front and rear
     // both
     if (q->rear == NULL) {
-        q->front = q->rear = temp;
+        q->front = temp;
+        q->rear = temp;
+        q->size++;
         return;
     }
  

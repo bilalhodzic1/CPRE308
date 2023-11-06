@@ -2,8 +2,22 @@
 #include <stdio.h>
 #include <string.h>
 
+typedef struct trans{
+    int acc_id;
+    int amount;
+}trans_t;
+
+typedef struct request{
+    int request_id;
+    int check_acc_id;
+    trans_t* transactions;
+    int num_trans;
+    struct timeval start_time, end_time;
+    char* request_string;
+}request_t;
+
 typedef struct QNode {
-    char* transaction;
+    request_t* request;
     struct QNode* next;
 } qNode_t;
  
@@ -14,8 +28,8 @@ typedef struct Queue {
     int size;
 }queue_t;
  
-struct QNode* newNode(char* transaction);
+struct QNode* newNode(request_t* request, char* request_string);
 struct Queue* createQueue();
-void enQueue(struct Queue* q, char* transaction);
+void enQueue(struct Queue* q, request_t* newreq, char* request_string);
 struct QNode deQueue(struct Queue* q);
 

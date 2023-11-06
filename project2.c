@@ -1,17 +1,14 @@
 #include "project2.h"
-#include "queue.h"
 #include "Bank.h"
 
 
 int external_id = 1;
-int internal_id = 1;
 
 int num_threads;
 int num_accounts;
 
 pthread_mutex_t* account_locks;
 pthread_t* worker_threads;
-pthread_mutex_t id_lock;
 
 queue_t* q; 
 
@@ -22,7 +19,6 @@ int main(int argc, char* argv[]){
 
 	worker_threads = malloc(num_threads * sizeof(pthread_t));
 	account_locks = malloc(num_accounts * sizeof(pthread_mutex_t));
-	pthread_mutex_init(&id_lock, NULL);
 	int i;
 	initialize_accounts(num_accounts);
 	q = createQueue();
@@ -34,14 +30,16 @@ int main(int argc, char* argv[]){
 	}
 
 
-	char transaction[100];
+	char request_string[100];
 	while(1){
-		fgets(transaction, 100, stdin);
-		int valid = check_valid(transaction);
+		fgets(request_string, 100, stdin);
+		int valid = check_valid(request_string);
 		if(valid){
 			printf("ID: %d\n", external_id);
 			external_id++;
-			enQueue(q, transaction);
+			request_t new_req;
+			gettimeofday(&new_req.start_time, NULL);
+			enQueue(q, &new_req, request_string);
 		}
 	}
 
@@ -55,30 +53,28 @@ void* work(){
 	while(1){
 		if(q->size != 0){
 			qNode_t gottem = deQueue(q);
-			request_t test = parse_transaction(gottem.transaction);
+			parse_transaction(gottem.request);
+			process_transaction(gottem.request);
+			printf("ID: %d CHECK ACC NUM: %d STARTTIM: %ld.%06.ld\n", gottem.request->request_id, gottem.request->check_acc_id, gottem.request->start_time.tv_sec, gottem.request->start_time.tv_usec);
 		}
 	}
 }
 
-request_t parse_transaction(char* transaction){
+void parse_transaction(request_t* request){
 	request_t new_request;
 	char copytrans[100];
-	strcpy(copytrans, transaction);
+	strcpy(copytrans, request->request_string);
 	char* token = strtok(copytrans, " ");
 	int valid = 0;
 	if(strcmp(token, "CHECK") == 0){
-		pthread_mutex_lock(&id_lock);
 		token = strtok(NULL, " ");
-		new_request.check_acc_id = atoi(token);
-		new_request.request_id = internal_id;
-		internal_id++;
-		pthread_mutex_unlock(&id_lock);
+		request->check_acc_id = atoi(token);
+		request->num_trans = 0; 
 	}else if(strcmp(token, "TRANS") == 0){
 
 	}else{
 
 	}
-	return new_request;
 }
 
 int check_valid(char* transaction){
@@ -89,6 +85,10 @@ int check_valid(char* transaction){
 		return 1;
 	}
 	return 0;
+}
+
+void process_transaction(request_t* request){
+
 }
 
 //TO make transactions first get old value. Adjust. Write the new value. Write does not do any math.
