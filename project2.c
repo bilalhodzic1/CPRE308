@@ -6,6 +6,7 @@ int external_id = 1;
 
 int num_threads;
 int num_accounts;
+FILE* output;
 
 pthread_mutex_t* account_locks;
 pthread_t* worker_threads;
@@ -36,8 +37,9 @@ int main(int argc, char* argv[]){
 		int valid = check_valid(request_string);
 		if(valid){
 			printf("ID: %d\n", external_id);
-			external_id++;
 			request_t new_req;
+			new_req.request_id = external_id;
+			external_id++;
 			gettimeofday(&new_req.start_time, NULL);
 			enQueue(q, &new_req, request_string);
 		}
@@ -55,7 +57,7 @@ void* work(){
 			qNode_t gottem = deQueue(q);
 			parse_transaction(gottem.request);
 			process_transaction(gottem.request);
-			printf("ID: %d CHECK ACC NUM: %d STARTTIM: %ld.%06.ld\n", gottem.request->request_id, gottem.request->check_acc_id, gottem.request->start_time.tv_sec, gottem.request->start_time.tv_usec);
+			//printf("ID: %d CHECK ACC NUM: %d STARTTIM: %ld.%06.ld\n", gottem.request->request_id, gottem.request->check_acc_id, gottem.request->start_time.tv_sec, gottem.request->start_time.tv_usec);
 		}
 	}
 }
@@ -88,7 +90,16 @@ int check_valid(char* transaction){
 }
 
 void process_transaction(request_t* request){
-
+	if(request->num_trans == 0){
+		pthread_mutex_lock(&account_locks[request->check_acc_id]);
+		int balance_result = read_account(request->check_acc_id);
+		pthread_mutex_unlock(&account_locks[request->check_acc_id]);
+		gettimeofday(&request->end_time, NULL);
+		printf("BAL %d TIME %ld.%06.ld %ld.%06.ld\n", balance_result, request->start_time.tv_sec, request->start_time.tv_usec,request->end_time.tv_sec, request->end_time.tv_usec);
+	}else{
+		int locks_needed[request->num_trans];
+		
+	}
 }
 
 //TO make transactions first get old value. Adjust. Write the new value. Write does not do any math.
