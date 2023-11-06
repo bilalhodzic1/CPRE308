@@ -9,7 +9,10 @@ int num_accounts;
 FILE* output;
 
 pthread_mutex_t* account_locks;
+pthread_mutex_t q_lock;
 pthread_t* worker_threads;
+
+
 
 queue_t* q; 
 
@@ -30,6 +33,7 @@ int main(int argc, char* argv[]){
 	for(i = 0; i < num_accounts; i++){
 		pthread_mutex_init(&account_locks[i], NULL);
 	}
+	pthread_mutex_init(&q_lock, NULL);
 	write_account(0, 1000);
 	write_account(2, 3000);
 	write_account(4, 7000);
@@ -60,12 +64,16 @@ int main(int argc, char* argv[]){
 
 void* work(){
 	while(1){
-		if(q->size != 0){
-			qNode_t gottem = deQueue(q);
+		pthread_mutex_lock(&q_lock);
+		qNode_t gottem = deQueue(q);
+		pthread_mutex_unlock(&q_lock);
+		if(gottem.request->num_trans != -1){
 			parse_transaction(gottem.request);
 			process_transaction(gottem.request);
-			//printf("ID: %d CHECK ACC NUM: %d STARTTIM: %ld.%06.ld\n", gottem.request->request_id, gottem.request->check_acc_id, gottem.request->start_time.tv_sec, gottem.request->start_time.tv_usec);
 		}
+			//printf("ID: %d CHECK ACC NUM: %d STARTTIM: %ld.%06.ld\n", gottem.request->request_id, gottem.request->check_acc_id, gottem.request->start_time.tv_sec, gottem.request->start_time.tv_usec);
+		
+		
 	}
 }
 
@@ -100,10 +108,10 @@ void process_transaction(request_t* request){
 	if(request->num_trans == 0){
 		pthread_mutex_lock(&account_locks[request->check_acc_id]);
 		int balance_result = read_account(request->check_acc_id);
-		sleep(10);
+		sleep(2);
 		pthread_mutex_unlock(&account_locks[request->check_acc_id]);
 		gettimeofday(&request->end_time, NULL);
-		printf("BAL %d TIME %ld.%06.ld %ld.%06.ld\n", balance_result, request->start_time.tv_sec, request->start_time.tv_usec,request->end_time.tv_sec, request->end_time.tv_usec);
+		fprintf(output,"BAL %d TIME %ld.%06.ld %ld.%06.ld\n", balance_result, request->start_time.tv_sec, request->start_time.tv_usec,request->end_time.tv_sec, request->end_time.tv_usec);
 	}else{
 		int locks_needed[request->num_trans];
 		

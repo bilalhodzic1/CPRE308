@@ -48,9 +48,12 @@ void enQueue(struct Queue* q, request_t* newreq, char* request_string)
 struct QNode deQueue(struct Queue* q)
 {
     struct QNode adjuster; 
-    // If queue is empty, return NULL.
-    if (q->front == NULL)
-        return adjuster;
+    if (q->size == 0){
+        request_t new_bogus;
+        new_bogus.num_trans = -1;
+        adjuster.request = &new_bogus;
+       return adjuster;
+    }
  
     // Store previous front and move front one node ahead
     struct QNode* temp = q->front;
