@@ -3,7 +3,8 @@
 #include "Bank.h"
 
 
-int id = 1;
+int external_id = 1;
+int internal_id = 1;
 
 int num_threads;
 int num_accounts;
@@ -38,7 +39,8 @@ int main(int argc, char* argv[]){
 		fgets(transaction, 100, stdin);
 		int valid = check_valid(transaction);
 		if(valid){
-			printf("ID: %d\n", id);
+			printf("ID: %d\n", external_id);
+			external_id++;
 			enQueue(q, transaction);
 		}
 	}
@@ -68,8 +70,8 @@ request_t parse_transaction(char* transaction){
 		pthread_mutex_lock(&id_lock);
 		token = strtok(NULL, " ");
 		new_request.check_acc_id = atoi(token);
-		new_request.request_id = id;
-		id++;
+		new_request.request_id = internal_id;
+		internal_id++;
 		pthread_mutex_unlock(&id_lock);
 	}else if(strcmp(token, "TRANS") == 0){
 
