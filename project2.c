@@ -3,13 +3,14 @@
 #include "Bank.h"
 
 
-int id = 0;
+int id = 1;
 
 int num_threads;
 int num_accounts;
 
 pthread_mutex_t* account_locks;
 pthread_t* worker_threads;
+pthread_mutex_t id_lock;
 
 queue_t* q; 
 
@@ -20,7 +21,7 @@ int main(int argc, char* argv[]){
 
 	worker_threads = malloc(num_threads * sizeof(pthread_t));
 	account_locks = malloc(num_accounts * sizeof(pthread_mutex_t));
-
+	pthread_mutex_init(&id_lock, NULL);
 	int i;
 	initialize_accounts(num_accounts);
 	q = createQueue();
@@ -35,12 +36,10 @@ int main(int argc, char* argv[]){
 	char transaction[100];
 	while(1){
 		fgets(transaction, 100, stdin);
-		enQueue(q, transaction);
-		if(q->size == 5){
-			while(q->size != 0){
-				qNode_t test = deQueue(q);
-				printf("%s\n", test.transaction);
-			}
+		int valid = check_valid(transaction);
+		if(valid){
+			printf("ID: %d\n", id);
+			enQueue(q, transaction);
 		}
 	}
 
@@ -61,14 +60,33 @@ void* work(){
 
 request_t parse_transaction(char* transaction){
 	request_t new_request;
-	char* token = strtok(transaction, " ");
+	char copytrans[100];
+	strcpy(copytrans, transaction);
+	char* token = strtok(copytrans, " ");
+	int valid = 0;
 	if(strcmp(token, "CHECK") == 0){
-		printf("Transaction after 1 strtok: %s\n", transaction);
+		pthread_mutex_lock(&id_lock);
 		token = strtok(NULL, " ");
 		new_request.check_acc_id = atoi(token);
+		new_request.request_id = id;
+		id++;
+		pthread_mutex_unlock(&id_lock);
+	}else if(strcmp(token, "TRANS") == 0){
+
+	}else{
+
 	}
-	printf("New request check id: %d\n", new_request.check_acc_id);
 	return new_request;
+}
+
+int check_valid(char* transaction){
+	char copytrans[100];
+	strcpy(copytrans, transaction);
+	char* token = strtok(copytrans, " ");
+	if(strcmp(token, "CHECK") == 0 || strcmp(token, "TRANS") == 0){
+		return 1;
+	}
+	return 0;
 }
 
 //TO make transactions first get old value. Adjust. Write the new value. Write does not do any math.

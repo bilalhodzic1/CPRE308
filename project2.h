@@ -22,3 +22,4 @@ void* work();
 
 request_t parse_transaction(char* transaction);
 
+int check_valid(char* transaction);

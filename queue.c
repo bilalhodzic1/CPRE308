@@ -44,7 +44,6 @@ void enQueue(struct Queue* q, char* transaction)
 // Function to remove a key from given queue q
 struct QNode deQueue(struct Queue* q)
 {
-
     struct QNode adjuster; 
     // If queue is empty, return NULL.
     if (q->front == NULL)
