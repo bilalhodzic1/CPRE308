@@ -29,8 +29,12 @@ int main(int argc, char* argv[]){
 	for(i = 0; i < num_accounts; i++){
 		pthread_mutex_init(&account_locks[i], NULL);
 	}
-
-
+	write_account(0, 1000);
+write_account(2, 3000);
+write_account(4, 7000);
+write_account(5, 8000);
+write_account(8, 45500);
+write_account(1, 1022300);
 	char request_string[100];
 	while(1){
 		fgets(request_string, 100, stdin);
