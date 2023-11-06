@@ -18,6 +18,7 @@ int main(int argc, char* argv[]){
 	num_accounts = atoi(argv[2]);
 	char* filename  = argv[3];
 
+	output = fopen(filename, "w");
 	worker_threads = malloc(num_threads * sizeof(pthread_t));
 	account_locks = malloc(num_accounts * sizeof(pthread_mutex_t));
 	int i;
@@ -30,11 +31,11 @@ int main(int argc, char* argv[]){
 		pthread_mutex_init(&account_locks[i], NULL);
 	}
 	write_account(0, 1000);
-write_account(2, 3000);
-write_account(4, 7000);
-write_account(5, 8000);
-write_account(8, 45500);
-write_account(1, 1022300);
+	write_account(2, 3000);
+	write_account(4, 7000);
+	write_account(5, 8000);
+	write_account(8, 45500);
+	write_account(1, 1022300);
 	char request_string[100];
 	while(1){
 		fgets(request_string, 100, stdin);
@@ -46,6 +47,8 @@ write_account(1, 1022300);
 			external_id++;
 			gettimeofday(&new_req.start_time, NULL);
 			enQueue(q, &new_req, request_string);
+		}else{
+			fclose(output);
 		}
 	}
 
@@ -97,6 +100,7 @@ void process_transaction(request_t* request){
 	if(request->num_trans == 0){
 		pthread_mutex_lock(&account_locks[request->check_acc_id]);
 		int balance_result = read_account(request->check_acc_id);
+		sleep(10);
 		pthread_mutex_unlock(&account_locks[request->check_acc_id]);
 		gettimeofday(&request->end_time, NULL);
 		printf("BAL %d TIME %ld.%06.ld %ld.%06.ld\n", balance_result, request->start_time.tv_sec, request->start_time.tv_usec,request->end_time.tv_sec, request->end_time.tv_usec);
