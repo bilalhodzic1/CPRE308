@@ -9,8 +9,7 @@ int num_accounts;
 int master_while = 1;
 FILE* output;
 
-pthread_mutex_t* account_locks;
-pthread_mutex_t q_lock;
+pthread_mutex_t bank_lock;
 pthread_t* worker_threads;
 
 
@@ -23,17 +22,13 @@ int main(int argc, char* argv[]){
 	char* filename  = argv[3];
 	output = fopen(filename, "w");
 	worker_threads = malloc(num_threads * sizeof(pthread_t));
-	account_locks = malloc(num_accounts * sizeof(pthread_mutex_t));
 	int i;
 	initialize_accounts(num_accounts);
 	q = createQueue();
 	for(i = 0; i < num_threads; i++){
 		pthread_create(&worker_threads[i], NULL, work, NULL);
 	}
-	for(i = 0; i < num_accounts; i++){
-		pthread_mutex_init(&account_locks[i], NULL);
-	}
-	pthread_mutex_init(&q_lock, NULL);
+	pthread_mutex_init(&bank_lock, NULL);
 	char request_string[1024];
 	while(1){
 		fgets(request_string, 1024, stdin);
@@ -63,13 +58,13 @@ int main(int argc, char* argv[]){
 
 void* work(){
 	while(master_while){
-		pthread_mutex_lock(&q_lock);
+		pthread_mutex_lock(&bank_lock);
 		qNode_t gottem = deQueue(q);
-		pthread_mutex_unlock(&q_lock);
 		if(gottem.request->num_trans != -1){
 			parse_transaction(gottem.request);
 			process_transaction(gottem.request);
 		}
+		pthread_mutex_unlock(&bank_lock);
 			//printf("ID: %d CHECK ACC NUM: %d STARTTIM: %ld.%06.ld\n", gottem.request->request_id, gottem.request->check_acc_id, gottem.request->start_time.tv_sec, gottem.request->start_time.tv_usec);
 		
 		
@@ -129,9 +124,7 @@ int check_valid(char* transaction){
 
 void process_transaction(request_t* request){
 	if(request->num_trans == 0){
-		pthread_mutex_lock(&account_locks[request->check_acc_id]);
 		int balance_result = read_account(request->check_acc_id);
-		pthread_mutex_unlock(&account_locks[request->check_acc_id]);
 		gettimeofday(&request->end_time, NULL);
 		fprintf(output, "%d BAL %d TIME %ld.%06ld %ld.%06ld\n",request->request_id ,balance_result, request->start_time.tv_sec, request->start_time.tv_usec,request->end_time.tv_sec, request->end_time.tv_usec);
 
@@ -142,11 +135,7 @@ void process_transaction(request_t* request){
 		for(i = 0; i < request->num_trans; i++){
 			locks_needed[i] = request->transactions[i].acc_id;
 		}
-		qsort(locks_needed, request->num_trans, sizeof(int), compare);
 		int transaction_index = 0;
-		for(i = 0; i < request->num_trans; i++){
-			pthread_mutex_lock(&account_locks[locks_needed[i]]);
-		}
 		int failure = 0;
 		for(i = 0; i < request->num_trans; i++){
 			original_states[i] = read_account(request->transactions[i].acc_id);
@@ -181,19 +170,6 @@ void process_transaction(request_t* request){
 			free(request->transactions);
 			free(request);
 		}
-		for(i = 0; i < request->num_trans; i++){
-			pthread_mutex_unlock(&account_locks[locks_needed[i]]);
-		}
 
 	}
-}
-
-int compare( const void* a, const void* b)
-{
-     int int_a = * ( (int*) a );
-     int int_b = * ( (int*) b );
-
-     if ( int_a == int_b ) return 0;
-     else if ( int_a < int_b ) return -1;
-     else return 1;
 }
