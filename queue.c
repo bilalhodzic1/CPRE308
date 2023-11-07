@@ -5,7 +5,7 @@ struct QNode* newNode(request_t* request, char* request_string)
 {
     struct QNode* temp
         = (struct QNode*)malloc(sizeof(struct QNode));
-    char* copy = malloc(sizeof(strlen(request_string)) + 1);
+    char* copy = malloc(sizeof(char) * (strlen(request_string) + 1));
     strcpy(copy, request_string);
     request->request_string = copy;
     temp->request = request;
@@ -64,7 +64,6 @@ struct QNode deQueue(struct Queue* q)
     // If front becomes NULL, then change rear also as NULL
     if (q->front == NULL)
         q->rear = NULL;
- 
     free(temp);
     return adjuster;
 }

@@ -6,6 +6,7 @@ int external_id = 1;
 
 int num_threads;
 int num_accounts;
+int master_while = 1;
 FILE* output;
 
 pthread_mutex_t* account_locks;
@@ -33,25 +34,24 @@ int main(int argc, char* argv[]){
 		pthread_mutex_init(&account_locks[i], NULL);
 	}
 	pthread_mutex_init(&q_lock, NULL);
-	write_account(0, 1000);
-	write_account(2, 3000);
-	write_account(4, 7000);
-	write_account(5, 8000);
-	write_account(8, 45500);
-	write_account(1, 1022300);
-	char request_string[100];
+	char request_string[1024];
 	while(1){
-		fgets(request_string, 100, stdin);
+		fgets(request_string, 1024, stdin);
 		int valid = check_valid(request_string);
-		if(valid){
+		if(valid == 1){
 			printf("ID: %d\n", external_id);
-			request_t new_req;
-			new_req.request_id = external_id;
+			request_t* new_req = malloc(sizeof(request_t));
+			new_req->request_id = external_id;
 			external_id++;
-			gettimeofday(&new_req.start_time, NULL);
-			enQueue(q, &new_req, request_string);
-		}else{
+			gettimeofday(&new_req->start_time, NULL);
+			enQueue(q, new_req, request_string);
+		}else if(valid == -3){
+			master_while = 0;
+			for(i = 0; i < num_threads; i++){
+				pthread_join(worker_threads[i], NULL);
+			}
 			fclose(output);
+			break;
 		}
 	}
 
@@ -62,7 +62,7 @@ int main(int argc, char* argv[]){
 }
 
 void* work(){
-	while(1){
+	while(master_while){
 		pthread_mutex_lock(&q_lock);
 		qNode_t gottem = deQueue(q);
 		pthread_mutex_unlock(&q_lock);
@@ -77,8 +77,7 @@ void* work(){
 }
 
 void parse_transaction(request_t* request){
-	request_t new_request;
-	char copytrans[100];
+	char copytrans[1024];
 	strcpy(copytrans, request->request_string);
 	char* token = strtok(copytrans, " ");
 	if(strcmp(token, "CHECK") == 0){
@@ -100,7 +99,7 @@ void parse_transaction(request_t* request){
 		}
 		request->transactions = malloc(sizeof(trans_t) * tran_count);
 		request->num_trans = tran_count;
-		char copy2[100];
+		char copy2[1024];
 		strcpy(copy2, request->request_string);
 		int i;
 		token = strtok(copy2, " ");
@@ -117,11 +116,13 @@ void parse_transaction(request_t* request){
 }
 
 int check_valid(char* transaction){
-	char copytrans[100];
+	char copytrans[1024];
 	strcpy(copytrans, transaction);
 	char* token = strtok(copytrans, " ");
 	if(strcmp(token, "CHECK") == 0 || strcmp(token, "TRANS") == 0){
 		return 1;
+	}else if (strcmp(token, "END")){
+		return -3;
 	}
 	return 0;
 }
@@ -130,10 +131,10 @@ void process_transaction(request_t* request){
 	if(request->num_trans == 0){
 		pthread_mutex_lock(&account_locks[request->check_acc_id]);
 		int balance_result = read_account(request->check_acc_id);
-		//sleep(2);
 		pthread_mutex_unlock(&account_locks[request->check_acc_id]);
 		gettimeofday(&request->end_time, NULL);
-		printf("BAL %d TIME %ld.%06.ld %ld.%06.ld\n", balance_result, request->start_time.tv_sec, request->start_time.tv_usec,request->end_time.tv_sec, request->end_time.tv_usec);
+		fprintf(output, "%d BAL %d TIME %ld.%06.ld %ld.%06.ld\n",request->request_id ,balance_result, request->start_time.tv_sec, request->start_time.tv_usec,request->end_time.tv_sec, request->end_time.tv_usec);
+
 	}else{
 		int locks_needed[request->num_trans];
 		int original_states[request->num_trans];
@@ -157,7 +158,8 @@ void process_transaction(request_t* request){
 			if(to_adjust < 0){
 				if(curr_bal < to_adjust * -1){
 					failure = 1;
-					printf("ACC failed");
+					gettimeofday(&request->end_time, NULL);
+					fprintf(output,"%d ISF %d TIME %ld.%06.ld %ld.%06.ld\n",request->request_id,request->transactions[i].acc_id,request->start_time.tv_sec, request->start_time.tv_usec,request->end_time.tv_sec, request->end_time.tv_usec);
 				}else{
 					write_account(request->transactions[i].acc_id, curr_bal + to_adjust);
 				}
@@ -169,6 +171,15 @@ void process_transaction(request_t* request){
 			for(i = 0; i < request->num_trans; i++){
 				write_account(request->transactions[i].acc_id, original_states[i]);
 			}
+			free(request->request_string);
+			free(request->transactions);
+			free(request);
+		}else{
+			gettimeofday(&request->end_time, NULL);
+			fprintf(output,"%d OK TIME %ld.%06.ld %ld.%06.ld\n",request->request_id,request->start_time.tv_sec, request->start_time.tv_usec,request->end_time.tv_sec, request->end_time.tv_usec);
+			free(request->request_string);
+			free(request->transactions);
+			free(request);
 		}
 		for(i = 0; i < request->num_trans; i++){
 			pthread_mutex_unlock(&account_locks[locks_needed[i]]);
@@ -186,16 +197,3 @@ int compare( const void* a, const void* b)
      else if ( int_a < int_b ) return -1;
      else return 1;
 }
-//TO make transactions first get old value. Adjust. Write the new value. Write does not do any math.
-
-	//For fine grained code we should obtain a lock for each and every account. For coarse grained code lock the whole damn bank.
-
-	//Mutexes need to be gained in order??
-		//How do we avoid deadlock
-
-			//Reccomeneded to have some semantic rhym or reason to locking. Maybe we should get all locks then switch
-				//Was mentuoned somewhere*(mayeb in lab document) that we should get lowest then continue. So always try to lock the lowest in the transaction
-					//What does this even prevent. 
-						//Imagine we are adjusting 1 and 2 in one trans
-						//And in another we are adjuting 3 and 1.
-							//Now we have a problem since 3 is gotten when 1 cant be which leads to many problems. Or maybe it doesnt idk
