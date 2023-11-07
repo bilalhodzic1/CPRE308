@@ -82,13 +82,36 @@ void parse_transaction(request_t* request){
 	char copytrans[100];
 	strcpy(copytrans, request->request_string);
 	char* token = strtok(copytrans, " ");
-	int valid = 0;
 	if(strcmp(token, "CHECK") == 0){
 		token = strtok(NULL, " ");
 		request->check_acc_id = atoi(token);
 		request->num_trans = 0; 
 	}else if(strcmp(token, "TRANS") == 0){
-
+		token = strtok(NULL, " ");
+		int tran_count = 0;
+		int flop = 0;
+		while(token != NULL){
+			if(flop == 0){
+				tran_count++;
+				flop = 1;
+			}else{
+				flop = 0;
+			}
+			token = strtok(NULL, " ");
+		}
+		request->transactions = malloc(sizeof(trans_t) * tran_count);
+		request->num_trans = tran_count;
+		char copy2[100];
+		strcpy(copy2, request->request_string);
+		int i;
+		token = strtok(copy2, " ");
+		token = strtok(NULL, " ");
+		for(i = 0; i < tran_count; i++){
+			request->transactions[i].acc_id = atoi(token);
+			token = strtok(NULL, " ");
+			request->transactions[i].amount = atoi(token);
+			token = strtok(NULL, " ");
+		}
 	}else{
 
 	}
@@ -108,13 +131,16 @@ void process_transaction(request_t* request){
 	if(request->num_trans == 0){
 		pthread_mutex_lock(&account_locks[request->check_acc_id]);
 		int balance_result = read_account(request->check_acc_id);
-		sleep(2);
+		//sleep(2);
 		pthread_mutex_unlock(&account_locks[request->check_acc_id]);
 		gettimeofday(&request->end_time, NULL);
-		fprintf(output,"BAL %d TIME %ld.%06.ld %ld.%06.ld\n", balance_result, request->start_time.tv_sec, request->start_time.tv_usec,request->end_time.tv_sec, request->end_time.tv_usec);
+		printf("BAL %d TIME %ld.%06.ld %ld.%06.ld\n", balance_result, request->start_time.tv_sec, request->start_time.tv_usec,request->end_time.tv_sec, request->end_time.tv_usec);
 	}else{
 		int locks_needed[request->num_trans];
-		
+		int i;
+		for(i = 0; i < request->num_trans; i++){
+			locks_needed[i] = request->transactions[i].acc_id;
+		}
 	}
 }
 
