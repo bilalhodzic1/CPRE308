@@ -14,3 +14,4 @@ void parse_transaction(request_t* request);
 int check_valid(char* transaction);
 
 void process_transaction(request_t* request);
+int compare( const void* a, const void* b);

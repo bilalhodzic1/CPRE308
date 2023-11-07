@@ -20,7 +20,6 @@ int main(int argc, char* argv[]){
 	num_threads = atoi(argv[1]);
 	num_accounts = atoi(argv[2]);
 	char* filename  = argv[3];
-
 	output = fopen(filename, "w");
 	worker_threads = malloc(num_threads * sizeof(pthread_t));
 	account_locks = malloc(num_accounts * sizeof(pthread_mutex_t));
@@ -137,13 +136,56 @@ void process_transaction(request_t* request){
 		printf("BAL %d TIME %ld.%06.ld %ld.%06.ld\n", balance_result, request->start_time.tv_sec, request->start_time.tv_usec,request->end_time.tv_sec, request->end_time.tv_usec);
 	}else{
 		int locks_needed[request->num_trans];
+		int original_states[request->num_trans];
 		int i;
 		for(i = 0; i < request->num_trans; i++){
 			locks_needed[i] = request->transactions[i].acc_id;
 		}
+		qsort(locks_needed, request->num_trans, sizeof(int), compare);
+		int transaction_index = 0;
+		for(i = 0; i < request->num_trans; i++){
+			pthread_mutex_lock(&account_locks[locks_needed[i]]);
+		}
+		int failure = 0;
+		for(i = 0; i < request->num_trans; i++){
+			original_states[i] = read_account(request->transactions[i].acc_id);
+		}
+
+		for(i = 0; i < request->num_trans; i++){
+			int curr_bal = read_account(request->transactions[i].acc_id);
+			int to_adjust = request->transactions[i].amount;
+			if(to_adjust < 0){
+				if(curr_bal < to_adjust * -1){
+					failure = 1;
+					printf("ACC failed");
+				}else{
+					write_account(request->transactions[i].acc_id, curr_bal + to_adjust);
+				}
+			}else{
+				write_account(request->transactions[i].acc_id, curr_bal + to_adjust);
+			}
+		}
+		if(failure){
+			for(i = 0; i < request->num_trans; i++){
+				write_account(request->transactions[i].acc_id, original_states[i]);
+			}
+		}
+		for(i = 0; i < request->num_trans; i++){
+			pthread_mutex_unlock(&account_locks[locks_needed[i]]);
+		}
+
 	}
 }
 
+int compare( const void* a, const void* b)
+{
+     int int_a = * ( (int*) a );
+     int int_b = * ( (int*) b );
+
+     if ( int_a == int_b ) return 0;
+     else if ( int_a < int_b ) return -1;
+     else return 1;
+}
 //TO make transactions first get old value. Adjust. Write the new value. Write does not do any math.
 
 	//For fine grained code we should obtain a lock for each and every account. For coarse grained code lock the whole damn bank.
